@@ -1,21 +1,14 @@
 """A compact, button-driven desktop Sudoku game built with tkinter."""
 
+import random
 import tkinter as tk
 from tkinter import messagebox
 
 
-# An easy puzzle: it has many pre-filled numbers, while still leaving spaces to play.
-PUZZLE = [
-    [5, 3, 4, 0, 7, 8, 9, 0, 2],
-    [6, 7, 0, 1, 9, 5, 0, 4, 8],
-    [1, 9, 8, 3, 0, 2, 5, 6, 7],
-    [8, 5, 9, 7, 6, 0, 4, 2, 3],
-    [4, 2, 6, 8, 5, 3, 7, 0, 1],
-    [7, 1, 3, 0, 2, 4, 8, 5, 6],
-    [9, 6, 1, 5, 3, 7, 2, 8, 4],
-    [2, 8, 7, 4, 1, 9, 6, 3, 5],
-    [3, 4, 5, 2, 8, 6, 1, 7, 9],
-]
+DIFFICULTIES = {
+    "ง่าย": 30,
+    "ปานกลาง": 45,
+}
 
 GIVEN_BACKGROUND = "#d9e7f5"
 CELL_BACKGROUND = "#ffffff"
@@ -33,10 +26,87 @@ class SudokuApp(tk.Tk):
         self.selected_number = None
         self.cells = []
         self.given_cells = set()
+        self.puzzle = []
+        self.current_difficulty = None
+        self._show_difficulty_selection()
+
+    def _clear_window(self):
+        for widget in self.winfo_children():
+            widget.destroy()
+
+    def _show_difficulty_selection(self):
+        self._clear_window()
+        tk.Label(self, text="Sudoku", font=("Arial", 18, "bold"), pady=10).pack()
+        tk.Label(
+            self,
+            text="เลือกระดับความยากก่อนเริ่มเกม",
+            font=("Arial", 11),
+        ).pack(pady=(0, 10))
+        choices = tk.Frame(self, padx=18, pady=4)
+        choices.pack()
+        tk.Button(
+            choices,
+            text="ง่าย\nช่องว่าง 30 ช่อง",
+            command=lambda: self.start_game("ง่าย"),
+            width=16,
+            font=("Arial", 11, "bold"),
+            bg="#d9e7f5",
+            pady=7,
+            cursor="hand2",
+        ).pack(side="left", padx=4)
+        tk.Button(
+            choices,
+            text="ปานกลาง\nช่องว่าง 45 ช่อง",
+            command=lambda: self.start_game("ปานกลาง"),
+            width=16,
+            font=("Arial", 11, "bold"),
+            bg="#e8eef5",
+            pady=7,
+            cursor="hand2",
+        ).pack(side="left", padx=4)
+
+    def start_game(self, difficulty):
+        self.current_difficulty = difficulty
+        self.puzzle = self._generate_puzzle(DIFFICULTIES[difficulty])
+        self.selected_number = None
+        self.cells = []
+        self.given_cells = set()
+        self._clear_window()
         self._build_interface()
 
+    @staticmethod
+    def _generate_puzzle(blank_count):
+        """Create a valid Sudoku solution, then remove random positions."""
+        row_order = [
+            band * 3 + row
+            for band in random.sample(range(3), 3)
+            for row in random.sample(range(3), 3)
+        ]
+        column_order = [
+            stack * 3 + column
+            for stack in random.sample(range(3), 3)
+            for column in random.sample(range(3), 3)
+        ]
+        numbers = random.sample(range(1, 10), 9)
+        solution = [
+            [
+                numbers[(3 * (row % 3) + row // 3 + column) % 9]
+                for column in column_order
+            ]
+            for row in row_order
+        ]
+        puzzle = [row[:] for row in solution]
+        for position in random.sample(range(81), blank_count):
+            puzzle[position // 9][position % 9] = 0
+        return puzzle
+
     def _build_interface(self):
-        tk.Label(self, text="Sudoku", font=("Arial", 18, "bold"), pady=6).pack()
+        tk.Label(
+            self,
+            text=f"Sudoku — ระดับ{self.current_difficulty}",
+            font=("Arial", 18, "bold"),
+            pady=6,
+        ).pack()
         self.help_text = tk.Label(
             self,
             text="เลือกเลขด้านล่าง แล้วคลิกช่องว่างที่ต้องการเติม",
@@ -49,7 +119,7 @@ class SudokuApp(tk.Tk):
         for row in range(9):
             row_cells = []
             for column in range(9):
-                value = PUZZLE[row][column]
+                value = self.puzzle[row][column]
                 cell = tk.Button(
                     board,
                     text=str(value) if value else "",
@@ -78,8 +148,10 @@ class SudokuApp(tk.Tk):
                 row_cells.append(cell)
             self.cells.append(row_cells)
 
+        actions = tk.Frame(self)
+        actions.pack(pady=(8, 6))
         tk.Button(
-            self,
+            actions,
             text="Done — ตรวจคำตอบ",
             command=self.check_board,
             font=("Arial", 11, "bold"),
@@ -90,7 +162,17 @@ class SudokuApp(tk.Tk):
             padx=12,
             pady=4,
             cursor="hand2",
-        ).pack(pady=(8, 6))
+        ).pack(side="left", padx=3)
+        tk.Button(
+            actions,
+            text="เริ่มเกมใหม่",
+            command=self._show_difficulty_selection,
+            font=("Arial", 11, "bold"),
+            bg="#e8eef5",
+            padx=10,
+            pady=4,
+            cursor="hand2",
+        ).pack(side="left", padx=3)
 
         tk.Label(self, text="เลือกตัวเลขที่จะเติม", font=("Arial", 10, "bold")).pack()
         number_pad = tk.Frame(self, padx=8, pady=4)
